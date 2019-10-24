@@ -1,6 +1,8 @@
 # ImGuiPlotter
 Scientific plotting function from ImGui. Thie requirement ImGui.
 
+!(Sample Image)(./_image/sample.jpg)
+
 # Install
 You just include <ImGuiPlotter> only!!
 
