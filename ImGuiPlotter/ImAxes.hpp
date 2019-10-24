@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <memory>
 
 #include <ImGui/imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -66,13 +67,14 @@ public:
 		, gridColor(ImColor(170, 170, 170)), gridWidth(0.5f)
 		, xlabelSize(ImGui::GetFontSize()), ylabelSize(ImGui::GetFontSize())
 		, xlabel(L""), ylabel(L"")
-		, xGridOn(false), yGridOn(false), dataPrecision(0)
+		, xGridOn(false), yGridOn(false)
+		, xPrecision(0), yPrecision(0)
 		, xlim(0, 1), ylim(0, 1)
 		, xtickNum(9), ytickNum(9)
 	{};
 	virtual ~ImAxes() {};
 
-	void AddImPlot(ImPlot<T>* _plot) {
+	void AddImPlot(std::shared_ptr<ImPlot<T>> _plot) {
 		vPlots.emplace_back(_plot);
 	}
 
@@ -90,7 +92,7 @@ public:
 	friend class ImPlot;
 
 private:
-	std::vector<ImPlot<T>*> vPlots;
+	std::vector<std::shared_ptr<ImPlot<T>>> vPlots;
 
 public:
 	ImPlotCoordType_ axesCoordType;
@@ -115,7 +117,8 @@ public:
 	bool yGridOn;
 	int ytickNum;
 
-	int dataPrecision;
+	int xPrecision;
+	int yPrecision;
 private:
 	ImRect axes_bb;
 	ImRect canvas_bb;
@@ -131,12 +134,13 @@ inline void ImAxes<T>::Render()
 
 	if (ytickNum < 2) ytickNum = 2;
 	if (xtickNum < 2) xtickNum = 2;
-	if (dataPrecision < 0) dataPrecision = 0;
+	if (yPrecision < 0) yPrecision = 0;
+	if (xPrecision < 0) xPrecision = 0;
 
-	ImVec2 yval_min_tsize = CalcTextSize(ntos(ylim.x, dataPrecision).c_str());
-	ImVec2 yval_max_tsize = CalcTextSize(ntos(ylim.y, dataPrecision).c_str());
-	ImVec2 xval_min_tsize = CalcTextSize(ntos(xlim.x, dataPrecision).c_str());
-	ImVec2 xval_max_tsize = CalcTextSize(ntos(xlim.y, dataPrecision).c_str());
+	ImVec2 yval_min_tsize = CalcTextSize(ntos(ylim.x, yPrecision).c_str());
+	ImVec2 yval_max_tsize = CalcTextSize(ntos(ylim.y, yPrecision).c_str());
+	ImVec2 xval_min_tsize = CalcTextSize(ntos(xlim.x, xPrecision).c_str());
+	ImVec2 xval_max_tsize = CalcTextSize(ntos(xlim.y, xPrecision).c_str());
 
 	ImVec2 xval_tsize = ImMax(xval_min_tsize, xval_max_tsize);
 	ImVec2 yval_tsize = ImMax(yval_min_tsize, yval_max_tsize);
@@ -157,7 +161,7 @@ inline void ImAxes<T>::Render()
 	switch (axesCoordType) {
 	case ImPlotCoordType_Polar:
 	{
-		ImVec2 tempSize = CalcTextSize(ntos(180.f, dataPrecision).c_str());
+		ImVec2 tempSize = CalcTextSize(ntos(180.f, yPrecision).c_str());
 		canvas_bb = ImRect(axes_bb.Min + tempSize * 1.f, axes_bb.Max - tempSize * 1.f);
 		ImVec2 center = canvas_bb.GetCenter();
 		float maxRadius = 0.5f * ((canvas_bb.GetWidth() > canvas_bb.GetHeight()) ? canvas_bb.GetHeight() : canvas_bb.GetWidth());
@@ -172,7 +176,7 @@ inline void ImAxes<T>::Render()
 		break;
 	}
 
-	for (ImPlot<T>* imPlot : vPlots)
+	for (std::shared_ptr<ImPlot<T>> imPlot : vPlots)
 	{
 		imPlot->axesType = axesCoordType;
 		imPlot->data_bb = data_bb;
@@ -199,7 +203,7 @@ inline void ImAxes<T>::Render()
 					gridColor,
 					gridWidth);
 			}
-			std::string temp = ntos(degrees(rad), dataPrecision);
+			std::string temp = ntos(degrees(rad), xPrecision);
 			ImVec2 tSize = CalcTextSize(temp.c_str());
 			window->DrawList->AddText(
 				center + offset - tSize * 0.5f + ImVec2(0.5f * tSize.x * cos(rad), -0.5f * tSize.y * sin(rad))
@@ -215,7 +219,7 @@ inline void ImAxes<T>::Render()
 			else if (xGridOn && i > 0) {
 				window->DrawList->AddCircle(center, maxRadius * i / (ytickNum - 1), gridColor, 36, gridWidth);
 			}
-			std::string temp = ntos((float)i * ylim.y / (ytickNum - 1), dataPrecision);
+			std::string temp = ntos((float)i * ylim.y / (ytickNum - 1), yPrecision);
 			ImVec2 tSize = CalcTextSize(temp.c_str());
 			window->DrawList->AddText(
 				center + ImVec2(0.f, -maxRadius * i / (ytickNum - 1))
@@ -253,7 +257,7 @@ inline void ImAxes<T>::Render()
 					gridColor,
 					gridWidth);
 			}
-			std::string temp = ntos((float)i * (ylim.y - ylim.x) / (ytickNum - 1) + ylim.x, dataPrecision);
+			std::string temp = ntos((float)i * (ylim.y - ylim.x) / (ytickNum - 1) + ylim.x, yPrecision);
 			ImVec2 tSize = CalcTextSize(temp.c_str());
 			window->DrawList->AddText(ImVec2(canvas_bb.Min.x - tSize.x, canvas_bb.Max.y - (float)i * canvas_bb.GetSize().y / (ytickNum - 1) - 0.5f * tSize.y), axesColor, temp.c_str());
 		}
@@ -274,7 +278,7 @@ inline void ImAxes<T>::Render()
 					gridColor,
 					gridWidth);
 			}
-			std::string temp = ntos((float)i * (xlim.y - xlim.x) / (xtickNum - 1) + xlim.x, dataPrecision);
+			std::string temp = ntos((float)i * (xlim.y - xlim.x) / (xtickNum - 1) + xlim.x, xPrecision);
 			ImVec2 tSize = CalcTextSize(temp.c_str());
 			window->DrawList->AddText(ImVec2(canvas_bb.Min.x + (float)i * canvas_bb.GetSize().x / (xtickNum - 1) - 0.5f * tSize.x, canvas_bb.Max.y + 3.f), axesColor, temp.c_str());
 		}

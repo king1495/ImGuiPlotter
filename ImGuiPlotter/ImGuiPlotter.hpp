@@ -2,6 +2,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
+#include <memory>
 
 #include <ImGui/imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -29,7 +30,7 @@ public:
 		ClearImAxes();
 	}
 
-	void AddImAxes(ImAxes<T>* _axes, int _ind = 0) {
+	void AddImAxes(std::shared_ptr<ImAxes<T>> _axes, int _ind = 0) {
 		if (_ind < 0 | _ind >= vAxes.size()) return;
 		vAxes[_ind] = _axes;
 	}
@@ -46,7 +47,7 @@ public:
 	friend class ImPlot;
 
 private:
-	std::vector<ImAxes<T>*> vAxes;
+	std::vector<std::shared_ptr<ImAxes<T>>> vAxes;
 	ImVec2 subPlot;
 
 public:
